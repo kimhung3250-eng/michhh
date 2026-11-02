@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>I love you heart</title>
+<style>
+  :root { color-scheme: dark; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  html, body { height: 100%; margin: 0; background: #c182bd; }
+  body { display: grid; place-items: center; overflow: hidden; }
+  canvas { display: block; width: min(96vw, 96vh); height: min(96vw, 96vh); }
+  img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.1; }
+</style>
+</head>
+<body>
+  <img src="Screenshot_2.png" alt="">
+<canvas id="c" role="img" aria-label="A heart outlined by the words I love you repeated many times, glowing pink on black"></canvas>
+<script>
+(function () {
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var labels = [], size = 0, fontPx = 0, dpr = 1;
+  var TEXT = 'michhh';
+
+  function heart(t) {
+    return {
+      x: 16 * Math.pow(Math.sin(t), 3),
+      y: 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)
+    };
+  }
+
+  function layout() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    size = canvas.clientWidth;
+    canvas.width = canvas.height = Math.round(size * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    fontPx = Math.max(8, size / 27);
+    ctx.font = fontPx + 'px system-ui, -apple-system, "Segoe UI", sans-serif';
+    var w = ctx.measureText(TEXT).width * 1.04, h = fontPx * 1.05;
+    var s = size * 0.84 / 32, cx = size / 2, cy = size * 0.48;
+    labels = [];
+    var steps = 3000;
+    for (var i = 0; i <= steps; i++) {
+      var t = Math.PI + (i / steps) * Math.PI * 2;
+      var p = heart(t), px = cx + p.x * s, py = cy - p.y * s;
+      var ok = true;
+      for (var j = 0; j < labels.length; j++) {
+        if (Math.abs(labels[j].x - px) < w && Math.abs(labels[j].y - py) < h) { ok = false; break; }
+      }
+      if (ok) labels.push({ x: px, y: py });
+    }
+    // glitchy ghost copies where the heart folds: cleft and tip
+    var cleft = { x: cx, y: cy - heart(0).y * s }, tip = { x: cx, y: cy + 17 * s };
+    var seed = 7;
+    function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647 - 0.5; }
+    labels.ghosts = [];
+    [cleft, tip].forEach(function (c) {
+      for (var k = 0; k < 7; k++) labels.ghosts.push({ x: c.x + rnd() * fontPx * 4, y: c.y + rnd() * fontPx * 2.4 });
+    });
+  }
+
+  function draw(now) {
+    var start = draw.start || (draw.start = now);
+    var reveal = reduce ? 1 : Math.min(1, (now - start) / 3200);
+    var shown = Math.floor(labels.length * reveal);
+    var beat = reduce ? 0 : Math.max(0, Math.sin((now - start) / 1000 * 2.2)) * Math.min(1, reveal * 1.2);
+    ctx.clearRect(0, 0, size, size);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = fontPx * (1 + beat * 0.012) + 'px system-ui, -apple-system, "Segoe UI", sans-serif';
+    ctx.shadowColor = 'rgba(255, 80, 140, 0.9)';
+    ctx.shadowBlur = fontPx * (0.5 + beat * 0.5);
+    for (var i = 0; i < shown; i++) {
+      var l = labels[i], fresh = Math.max(0, 1 - (shown - i) / 14);
+      ctx.fillStyle = fresh > 0 ? 'rgba(255, 235, 242,' + (0.85 + fresh * 0.15) + ')' : 'rgba(255, 168, 190, 0.92)';
+      ctx.fillText(TEXT, l.x, l.y);
+    }
+    if (reveal >= 1 && labels.ghosts) {
+      ctx.shadowBlur = fontPx * 0.9;
+      for (var g = 0; g < labels.ghosts.length; g++) {
+        var q = labels.ghosts[g], flick = reduce ? 0.35 : 0.2 + 0.25 * Math.abs(Math.sin(now / 340 + g * 1.7));
+        ctx.fillStyle = (g % 3 === 0 ? 'rgba(255, 255, 255,' : 'rgba(255, 140, 175,') + flick + ')';
+        ctx.fillText(TEXT, q.x, q.y);
+      }
+    }
+    ctx.shadowBlur = 0;
+    if (!reduce || reveal < 1) requestAnimationFrame(draw);
+  }
+
+  var timer;
+  window.addEventListener('resize', function () {
+    clearTimeout(timer);
+    timer = setTimeout(function () { layout(); if (reduce) requestAnimationFrame(draw); }, 120);
+  });
+  layout();
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
